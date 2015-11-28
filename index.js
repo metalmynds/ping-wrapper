@@ -9,6 +9,8 @@ var LINE_REG = /^(\d+) bytes from (.*?): icmp_[rs]eq=(\d+) ttl=(\d+) time=([\d\.
 module.exports = function (target, options) {
   var emitter = new events.EventEmitter;
   var packets = 0;
+  var startTime = process.hrtime();
+
 
   options = options || {};
   options.count = options.count || 10;
@@ -39,10 +41,11 @@ module.exports = function (target, options) {
         });
       } else if (match_mac) {
         emitter.emit("exit", {
-          sent: +match[1],
-          recieved: +match[2],
-          loss: +match[3],
-          time: +match[4]
+          target: target,
+          sent: +match_mac[1],
+          recieved: +match_mac[2],
+          loss: +match_mac[3],
+          time: +process.hrtime(startTime)[0] + " s"
         });
       }
     } else {
