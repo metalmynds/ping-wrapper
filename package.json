@@ -1,6 +1,6 @@
 {
   "name": "ping-wrapper2",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Native wrapper for ping",
   "homepage": "https://github.com/sebmck/ping-wrapper",
   "author": "Sebastian McKenzie <sebmck@gmail.com>",
