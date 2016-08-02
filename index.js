@@ -2,14 +2,25 @@ var events = require("events");
 var child  = require("child_process");
 var os = require("os");
 
-var LINUX_EXIT_REG = /^(\d+) packets transmitted, (\d+) received, (.*)% packet loss, time (\d+)ms$/m;
-var MAC_EXIT_REG = /^(\d+) packets transmitted, (\d+) packets received, (.*)% packet loss$/m;
-var WIN_EXIT_REG = /Packets: Sent = (\d+), Received = (\d+), Lost = (\d+) \((\d+)% loss\).*?Minimum = \d+ms, Maximum = \d+ms, Average = (\d+)ms/;
-var LINE_REG = /^(\d+) bytes from (.*?): icmp_[rs]eq=(\d+) ttl=(\d+) time=([\d\.]+) ms$/;
-var LINE_WIN = /^Reply from (.*?): bytes=(\d+) time=([\d\.]+)ms TTL=(\d+)$/;
+var REGEX = {
+  line: {
+    win: /^Reply from (.*?): bytes=(\d+) time=([\d\.]+)ms TTL=(\d+)$/,
+    unix: /^(\d+) bytes from (.*?): icmp_[rs]eq=(\d+) ttl=(\d+) time=([\d\.]+) ms$/
+  },
+  exit: {
+    linux: /^(\d+) packets transmitted, (\d+) received, (.*)% packet loss, time (\d+)ms$/m,
+    mac: /^(\d+) packets transmitted, (\d+) packets received, (.*)% packet loss$/m,
+    win: /Packets: Sent = (\d+), Received = (\d+), Lost = (\d+) \((\d+)% loss\).*?(Minimum = \d+ms, Maximum = \d+ms, Average = (\d+)ms)?/
+  },
+  timeout: {
+    win: /Request timed out\./
+  },
+  no_resolve: {
+    win: /^Ping request could not find host (.*?). Please check the name and try again.$/
+  }
+};
 
 module.exports = function (target, options) {
-  console.log("called")
   var emitter = new events.EventEmitter;
   var packets = 0;
   var totalTime = 0;
@@ -25,68 +36,73 @@ module.exports = function (target, options) {
   }
   spawn.stdout.on("data", data);
 
-  function line(str) {
-    str = str.trim().replace(/\s+/g, " ");
+  function emitData(target, no, bytes, time, ttl)
+  {
+    emitter.emit("data", {
+      target: target,
+      no: no,
+      bytes: bytes,
+      time: time,
+      ttl: ttl
+    });
+  }
 
-    var match = str.match(LINE_REG);
-    var win_match = str.match(LINE_WIN);
+  function emitExit(target, sent, received, lost, time)
+  {
+    emitter.emit("exit", {
+      target: target,
+      sent: sent,
+      received: received,
+      loss: lost,
+      time: time
+    });
+  }
+
+  function line(str)
+  {
+    console.log(str);
+    str = str.trim().replace(/\s+/g, " ");
+    var match;
+
+    // successful pings
+    match = str.match(REGEX.line.win);
     if (match) {
-      emitter.emit(
-        "data", {
-          target: target,
-          no: ++packets,
-          bytes: +match[1],
-          time: +match[5],
-          ttl: +match[4]
-        }
-      );
-      totalTime += parseFloat(match[5]);
-    } else if (win_match) {
-      emitter.emit(
-        "data", {
-          target: target,
-          no: ++packets,
-          bytes: +win_match[2],
-          time: +win_match[3],
-          ttl: +win_match[4]
-        }
-      );
-      totalTime += parseFloat(win_match[3]);
-    } else {
-      var match_linux = str.match(LINUX_EXIT_REG);
-      var match_mac = str.match(MAC_EXIT_REG);
-      var match_win = str.match(WIN_EXIT_REG);
-      if (match_linux) {
-        emitter.emit(
-          "exit", {
-            target: target,
-            sent: +match_linux[1],
-            recieved: +match_linux[2],
-            loss: +match_linux[3],
-            time: +match_linux[4]
-          }
-        );
-      } else if (match_mac) {
-        emitter.emit(
-          "exit", {
-            target: target,
-            sent: +match_mac[1],
-            recieved: +match_mac[2],
-            loss: +match_mac[3],
-            time: +totalTime
-          }
-        );
-      } else if (match_win) {
-        emitter.emit(
-          "exit", {
-            target: target,
-            sent: +match_win[1],
-            recieved: +match_win[2],
-            loss: +match_win[4],
-            time: +totalTime
-          }
-        );
-      }
+      totalTime += parseFloat(match[3]);
+      emitData(target, ++packets, +match[2], +match[3], +match[4]);
+    }
+
+    match = str.match(REGEX.line.unix);
+    if (match) {
+      totalTime += parseFloat(match[4]);
+      emitData(target, ++packets, +match[1], +match[5], +match[4]);
+    }
+
+    // timeouts
+    match = str.match(REGEX.timeout.win);
+    if (match) {
+      emitData(target, ++packets, 0, 0, 0);
+    }
+
+    // cant resolve
+    match = str.match(REGEX.no_resolve.win);
+    if (match) {
+      emitExit(target, 0, 0, 100, 0);
+    }
+
+    // exit strings (complete ping)
+    match = str.match(REGEX.exit.linux);
+    if (match) {
+      emitExit(target, +match[1], +match[2], +match[3], +match[4]);
+    }
+
+    match = str.match(REGEX.exit.mac);
+    if (match) {
+      emitExit(target, +match[1], +match[2], +match[3], totalTime);
+    }
+
+    match = str.match(REGEX.exit.win);
+    if (match) {
+      emitExit(target, +match[1], +match[2], +match[4], totalTime);
     }
   }
 
