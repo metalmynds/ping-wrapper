@@ -4,12 +4,12 @@ Native wrapper for ping.
 
 ## Install
 
-    npm install ping-wrapper2
+    npm install ping-wrapper3
 
 ## Example
 
 ```javascript
-var ping = require("ping-wrapper2");
+var ping = require("ping-wrapper3");
 
 var exec = ping("google.com", { count: 20 }); // default 10 packets
 
