@@ -11,7 +11,7 @@ Native wrapper for ping.
 ```javascript
 var ping = require("ping-wrapper3");
 
-var exec = ping("google.com", { count: 10 }); // default ping forever
+var exec = ping("google.com", { count: 20 }); // default 10 packets (0 ping forever)
 
 exec.on("data", function(data){
   // { no: 1, bytes: 64, time: 54, ttl: 1 }
