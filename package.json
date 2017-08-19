@@ -1,6 +1,6 @@
 {
   "name": "ping-wrapper3",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Native wrapper for ping",
   "homepage": "https://github.com/metalmynds/ping-wrapper",
   "author": "David Paterson <crazeydave.2.0@gmail.com>, Matt Holmes, Sebastian McKenzie <sebmck@gmail.com>",

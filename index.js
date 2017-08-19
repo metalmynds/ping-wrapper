@@ -42,80 +42,81 @@ module.exports = function (target, options) {
             var spawn = child.spawn("ping", ["-c", options.count, target]);
         }
     }
-}
-spawn.stdout.on("data", data);
 
-function emitData(target, no, bytes, time, ttl) {
-    emitter.emit("data", {
-        target: target,
-        no: no,
-        bytes: bytes,
-        time: time,
-        ttl: ttl
-    });
-}
+    spawn.stdout.on("data", data);
 
-function emitExit(target, sent, received, lost, time) {
-    emitter.emit("exit", {
-        target: target,
-        sent: sent,
-        received: received,
-        loss: lost,
-        time: time
-    });
-}
-
-function line(str) {
-    console.log(str);
-    str = str.trim().replace(/\s+/g, " ");
-    var match;
-
-    // successful pings
-    match = str.match(REGEX.line.win);
-    if (match) {
-        totalTime += parseFloat(match[3]);
-        emitData(target, ++packets, +match[2], +match[3], +match[4]);
+    function emitData(target, no, bytes, time, ttl) {
+        emitter.emit("data", {
+            target: target,
+            no: no,
+            bytes: bytes,
+            time: time,
+            ttl: ttl
+        });
     }
 
-    match = str.match(REGEX.line.unix);
-    if (match) {
-        totalTime += parseFloat(match[4]);
-        emitData(target, ++packets, +match[1], +match[5], +match[4]);
+    function emitExit(target, sent, received, lost, time) {
+        emitter.emit("exit", {
+            target: target,
+            sent: sent,
+            received: received,
+            loss: lost,
+            time: time
+        });
     }
 
-    // timeouts
-    match = str.match(REGEX.timeout.win);
-    if (match) {
-        emitData(target, ++packets, 0, 0, 0);
+    function line(str) {
+        console.log(str);
+        str = str.trim().replace(/\s+/g, " ");
+        var match;
+
+        // successful pings
+        match = str.match(REGEX.line.win);
+        if (match) {
+            totalTime += parseFloat(match[3]);
+            emitData(target, ++packets, +match[2], +match[3], +match[4]);
+        }
+
+        match = str.match(REGEX.line.unix);
+        if (match) {
+            totalTime += parseFloat(match[4]);
+            emitData(target, ++packets, +match[1], +match[5], +match[4]);
+        }
+
+        // timeouts
+        match = str.match(REGEX.timeout.win);
+        if (match) {
+            emitData(target, ++packets, 0, 0, 0);
+        }
+
+        // cant resolve
+        match = str.match(REGEX.no_resolve.win);
+        if (match) {
+            emitExit(target, 0, 0, 100, 0);
+        }
+
+        // exit strings (complete ping)
+        match = str.match(REGEX.exit.linux);
+        if (match) {
+            emitExit(target, +match[1], +match[2], +match[3], +match[4]);
+        }
+
+        match = str.match(REGEX.exit.mac);
+        if (match) {
+            emitExit(target, +match[1], +match[2], +match[3], totalTime);
+        }
+
+        match = str.match(REGEX.exit.win);
+        if (match) {
+            emitExit(target, +match[1], +match[2], +match[4], totalTime);
+        }
     }
 
-    // cant resolve
-    match = str.match(REGEX.no_resolve.win);
-    if (match) {
-        emitExit(target, 0, 0, 100, 0);
+    function data(str) {
+        str = str + "";
+        line(str);
     }
 
-    // exit strings (complete ping)
-    match = str.match(REGEX.exit.linux);
-    if (match) {
-        emitExit(target, +match[1], +match[2], +match[3], +match[4]);
-    }
-
-    match = str.match(REGEX.exit.mac);
-    if (match) {
-        emitExit(target, +match[1], +match[2], +match[3], totalTime);
-    }
-
-    match = str.match(REGEX.exit.win);
-    if (match) {
-        emitExit(target, +match[1], +match[2], +match[4], totalTime);
-    }
-}
-
-function data(str) {
-    str = str + "";
-    line(str);
-}
-
-return emitter;
+    return emitter;
 };
+
