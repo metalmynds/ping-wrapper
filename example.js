@@ -1,5 +1,5 @@
 var ping = require("./index");
-var exec = ping("google.com");
+var exec = ping("google.com", 10);
 
 exec.on("data", function(data) {
   console.log(data);

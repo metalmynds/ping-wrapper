@@ -25,21 +25,22 @@ module.exports = function (target, options) {
     var packets = 0;
     var totalTime = 0;
 
+    var spawn = null;
 
     options = options || {};
-    options.count = options.count || 10;
+    options.count = options.count < 0 || 10;
 
-    if (os.platform() == "win32") {
-        if (options.count == 0) { // Ping forever
-            var spawn = child.spawn("ping", ["/t", target]);
+    if (os.platform() === "win32") {
+        if (options.count === 0) { // Ping forever
+            spawn = child.spawn("ping", ["/t", target]);
         } else {
-            var spawn = child.spawn("ping", ["/n", options.count, target]);
+            spawn = child.spawn("ping", ["/n", options.count, target]);
         }
     } else {
-        if (options.count == 0) { // Ping forever
-            var spawn = child.spawn("ping", [target]);
+        if (options.count === 0) { // Ping forever
+            spawn = child.spawn("ping", [target]);
         } else {
-            var spawn = child.spawn("ping", ["-c", options.count, target]);
+            spawn = child.spawn("ping", ["-c", options.count, target]);
         }
     }
 
